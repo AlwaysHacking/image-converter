@@ -27,7 +27,7 @@ app.use(async function(ctx, next) {
       stream.on("finish", async () => {
         await new Promise((resolve, reject) => {
           webp.dwebp(savePath, "./public/output.jpg", "-o", (status, error) => {
-            if (status === 100) {
+            if (status === "100") {
               resolve();
             } else {
               console.log("Convert webp failed.");
