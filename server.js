@@ -35,7 +35,7 @@ function transResToWebp(res, name, resolve, reject) {
   setTimeout(() => {
     console.log("Timeout!");
     reject();
-  }, 30000);
+  }, 60000);
 }
 
 app.use(async function(ctx, next) {
