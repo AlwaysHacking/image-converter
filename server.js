@@ -6,6 +6,7 @@ const koaBody = require("koa-body");
 const logger = require("koa-logger");
 const serve = require("koa-static");
 const got = require("got");
+const FileType = require("file-type");
 
 const app = new Koa();
 
@@ -14,7 +15,7 @@ app.use(logger());
 app.use(koaBody({ multipart: true }));
 app.use(serve(path.join(__dirname, "/public")));
 
-function transResToWebp(res, name, resolve, reject) {
+function transWebpToJpg(res, name, resolve, reject) {
   const savePath = path.join("./public", name);
   const writer = fs.createWriteStream(savePath);
   const stream = res.pipe(writer);
@@ -32,10 +33,6 @@ function transResToWebp(res, name, resolve, reject) {
     });
     resolve(200);
   });
-  setTimeout(() => {
-    console.log("Timeout!");
-    reject();
-  }, 60000);
 }
 
 app.use(async function(ctx, next) {
@@ -44,7 +41,7 @@ app.use(async function(ctx, next) {
       await new Promise((resolve, reject) => {
         const file = ctx.request.files.file;
         const res = fs.createReadStream(file.path);
-        transResToWebp(res, file.name, resolve, reject);
+        transWebpToJpg(res, file.name, resolve, reject);
       });
       ctx.body = {
         status: 200,
@@ -59,11 +56,20 @@ app.use(async function(ctx, next) {
       };
     }
   }
-  if ("GET" === ctx.method) {
-    const imageUrl = ctx.request.query.image_url;
-    await new Promise((resolve, reject) => {
-      transResToWebp(got.stream(imageUrl), "output.jpg", resolve, reject);
-    });
+  const imageUrl = ctx.request.query.image_url;
+  if ("GET" === ctx.method && imageUrl) {
+    const fetchStream = got.stream(imageUrl);
+    const fileType = await FileType.fromStream(fetchStream);
+    if (fileType.ext === "webp") {
+      await new Promise((resolve, reject) => {
+        transWebpToJpg(got.stream(imageUrl), "output.jpg", resolve, reject);
+      });
+    } else {
+      await new Promise(resolve => {
+        const writeStream = fs.createWriteStream("./public/output.jpg");
+        fetchStream.pipe(writeStream).on("finish", resolve);
+      });
+    }
     ctx.body = {
       status: 200,
       code: 1,
